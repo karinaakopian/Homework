@@ -1,0 +1,160 @@
+-- Homework 1
+
+-- create and fill tables
+CREATE TABLE Students (
+    student_id INT PRIMARY KEY, -- uniquely identifies each student (could use autoincrement)
+    student_name VARCHAR(100), -- variable character column with max length 100
+    age INT,
+    major_department_id INT
+);
+
+INSERT INTO Students (student_id, student_name, age, major_department_id)
+VALUES
+(1, 'Maryna', 19, 1),
+(2, 'Olena', 20, 2),
+(3, 'Ivan', 22, 1),
+(4, 'Vladyslav', 21, 3);
+
+CREATE TABLE Courses (
+    course_id INT PRIMARY KEY,
+    course_name VARCHAR(100),
+    instructor_id INT,
+    department_id INT
+);
+
+INSERT INTO Courses (course_id, course_name, instructor_id, department_id)
+VALUES
+(101, 'Mathematics', 1, 1),
+(102, 'Database', 2, 2),
+(103, 'Econometrics', 3, 3),
+(104, 'Programming', 2, 2);
+
+
+CREATE TABLE Instructors (
+    instructor_id INT PRIMARY KEY,
+    instructor_name VARCHAR(100),
+    department_id INT
+);
+
+INSERT INTO Instructors (instructor_id, instructor_name, department_id)
+VALUES
+(1, 'Smith', 1),
+(2, 'Chesnokov', 2),
+(3, 'Tymoshkevich', 3);
+
+CREATE TABLE Enrollments (
+    enrollment_id INT PRIMARY KEY,
+    student_id INT,
+    course_id INT,
+    grade CHAR(2)
+);
+
+INSERT INTO Enrollments (enrollment_id, student_id, course_id, grade)
+VALUES
+(1, 1, 101, 'A'),
+(2, 2, 102, 'B'),
+(3, 3, 101, 'A'),
+(4, 4, 103, 'C'),
+(5, 1, 102, 'B');
+
+
+CREATE TABLE Departments (
+    department_id INT PRIMARY KEY,
+    department_name VARCHAR(100)
+);
+
+INSERT INTO Departments (department_id, department_name)
+VALUES
+(1, 'Maths'),
+(2, 'It'),
+(3, 'Economics');
+
+-- Main Task
+
+SELECT 
+    s.student_name, 
+    d.department_name, 
+    c.course_name, 
+    i.instructor_name, 
+    e.grade
+FROM 
+    Students s
+JOIN 
+    Enrollments e ON s.student_id = e.student_id 
+JOIN 
+    Courses c ON e.course_id = c.course_id 
+JOIN 
+    Instructors i ON c.instructor_id = i.instructor_id 
+JOIN 
+    Departments d ON s.major_department_id = d.department_id 
+WHERE 
+    e.grade IN ('A', 'B')
+GROUP BY 
+    s.student_name, d.department_name, c.course_name, i.instructor_name, e.grade
+ORDER BY 
+    e.grade ASC;
+
+   
+-- additional exercise 
+-- Union All
+-- students on maths course
+SELECT 
+    s.student_name, 
+    'Mathematics' AS course_name
+FROM 
+    Students s
+JOIN 
+    Enrollments e ON s.student_id = e.student_id
+JOIN 
+    Courses c ON e.course_id = c.course_id
+WHERE 
+    c.course_name = 'Mathematics'
+
+UNION ALL  
+
+-- Students on econometrics course
+SELECT 
+    s.student_name, 
+    'Econometrics' AS course_name
+FROM 
+    Students s
+JOIN 
+    Enrollments e ON s.student_id = e.student_id
+JOIN 
+    Courses c ON e.course_id = c.course_id
+WHERE 
+    c.course_name = 'Econometrics';
+
+   
+ -- CTE (calculate average grades for each student for every subject they attend)
+
+WITH StudentAverageGrades AS (
+    SELECT
+        s.student_id,
+        s.student_name,
+        AVG(
+            CASE
+                WHEN e.grade = 'A' THEN 4
+                WHEN e.grade = 'B' THEN 3
+                WHEN e.grade = 'C' THEN 2
+                ELSE 0
+            END
+        ) AS avg_grade
+    FROM Students s
+    JOIN Enrollments e ON s.student_id = e.student_id
+    GROUP BY s.student_id, s.student_name
+)
+
+-- Main query to retrieve the desired information
+SELECT
+    sa.student_name,
+    c.course_name,
+    i.instructor_name,
+    sa.avg_grade
+FROM StudentAverageGrades sa
+JOIN Enrollments e ON sa.student_id = e.student_id
+JOIN Courses c ON e.course_id = c.course_id
+JOIN Instructors i ON c.instructor_id = i.instructor_id
+-- WHERE sa.avg_grade > 2 
+GROUP BY sa.student_name, c.course_name, i.instructor_name, sa.avg_grade
+ORDER BY sa.student_name, c.course_name;

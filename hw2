@@ -1,0 +1,53 @@
+use polina
+
+
+select * from Courses
+select * from Enrolments
+select * from Students
+
+-- 
+
+select s.id AS student_id, s.name AS student_name, s.age, c.name AS course_name, c.credits, e.grade
+from Enrolments e
+join Students s ON e.student_id = s.id
+join Courses c ON e.course_id = c.id
+where c.credits >= 3 and e.grade IN ('A', 'B')
+order by s.name;
+
+-- 
+
+create index idx_enrolments_student_course_grade on Enrolments (student_id, course_id, grade);
+create index idx_courses_id_credits on Courses (id, credits);
+
+WITH FilteredCourses AS (
+    SELECT 
+        id, name, credits
+    FROM 
+        Courses
+    WHERE 
+        credits >= 3
+),
+FilteredEnrolments AS (
+    SELECT 
+        enrolment_id, student_id, course_id, grade
+    FROM 
+        Enrolments
+    WHERE 
+        grade IN ('A', 'B')
+)
+SELECT 
+    s.id AS student_id,
+    s.name AS student_name,
+    s.age,
+    fc.name AS course_name,
+    fc.credits,
+    fe.grade
+FROM 
+    FilteredEnrolments fe
+JOIN 
+    Students s ON fe.student_id = s.id
+JOIN 
+    FilteredCourses fc ON fe.course_id = fc.id
+ORDER BY 
+    s.name;
+

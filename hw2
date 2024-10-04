@@ -5,49 +5,73 @@ select * from Courses
 select * from Enrolments
 select * from Students
 
--- 
+-- find students with the least and the most enrollments
+-- non-optimized 
+   
+-- explain analyze
+select
+(select name
+from (
+-- count the number of enrollments for each student and group by student id and name 
+select s.name, count(*) as cnt
+from enrolments e
+join students s on e.student_id = s.id
+group by s.id, s.name
+) as sub1
+-- find the student with the minimum number of enrollments by comparing with the min count
+where cnt = (select min(cnt)
+from (
+select count(*) as cnt
+from enrolments
+group by student_id) 
+as sub2)
+limit 1) as min_student,
 
-select s.id AS student_id, s.name AS student_name, s.age, c.name AS course_name, c.credits, e.grade
-from Enrolments e
-join Students s ON e.student_id = s.id
-join Courses c ON e.course_id = c.id
-where c.credits >= 3 and e.grade IN ('A', 'B')
-order by s.name;
+(select name
+from (
+select s.name, count(*) as cnt
+from enrolments e
+join students s on e.student_id = s.id
+group by s.id, s.name
+) as sub3
+where cnt = (select max(cnt)
+from (
+select count(*) as cnt
+from enrolments
+group by student_id) as sub4)
+limit 1) as max_student;
 
--- 
+    
+-- optimized with CTE and indexes 
+   
+create index idx_enrolments_student on enrolments (student_id);
+create index idx_students_id on students (id);
 
-create index idx_enrolments_student_course_grade on Enrolments (student_id, course_id, grade);
-create index idx_courses_id_credits on Courses (id, credits);
+-- explain analyze
+with filteredenrolments as (
+select 
+student_id, 
+count(*) as cnt
+from 
+enrolments
+group by 
+student_id),
+studentnames as (
+select 
+s.id as student_id, 
+s.name
+from 
+students s)
 
-WITH FilteredCourses AS (
-    SELECT 
-        id, name, credits
-    FROM 
-        Courses
-    WHERE 
-        credits >= 3
-),
-FilteredEnrolments AS (
-    SELECT 
-        enrolment_id, student_id, course_id, grade
-    FROM 
-        Enrolments
-    WHERE 
-        grade IN ('A', 'B')
-)
-SELECT 
-    s.id AS student_id,
-    s.name AS student_name,
-    s.age,
-    fc.name AS course_name,
-    fc.credits,
-    fe.grade
-FROM 
-    FilteredEnrolments fe
-JOIN 
-    Students s ON fe.student_id = s.id
-JOIN 
-    FilteredCourses fc ON fe.course_id = fc.id
-ORDER BY 
-    s.name;
+select 
+(select sn.name
+from filteredenrolments fe
+join studentnames sn on fe.student_id = sn.student_id
+where fe.cnt = (select min(cnt) from filteredenrolments)
+limit 1) as min_student,
 
+(select sn.name
+from filteredenrolments fe
+join studentnames sn on fe.student_id = sn.student_id
+where fe.cnt = (select max(cnt) from filteredenrolments)
+limit 1) as max_student;
